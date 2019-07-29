@@ -39,7 +39,7 @@ type MyKindReconciler struct {
 // +kubebuilder:rbac:groups=mygroup.k8s.io,resources=mykinds,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=mygroup.k8s.io,resources=mykinds/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=mygroup.k8s.io,resources=mykinds/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update
 
 func (r *MyKindReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -77,7 +77,24 @@ func (r *MyKindReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	log.Info("existing Deployment resource already exists for MyKind, finished processing")
+	log.Info("existing Deployment resource already exists for MyKind, checking replica count")
+
+	expectedReplicas := int32(1)
+	if myKind.Spec.Replicas != nil {
+		expectedReplicas = *myKind.Spec.Replicas
+	}
+	if *deployment.Spec.Replicas == expectedReplicas {
+		log.Info("replica count up to date", "replica_count", *deployment.Spec.Replicas)
+		return ctrl.Result{}, nil
+	}
+
+	log.Info("updating replica count", "old_count", *deployment.Spec.Replicas, "new_count", expectedReplicas)
+
+	deployment.Spec.Replicas = &expectedReplicas
+	if err := r.Client.Update(ctx, &deployment); err != nil {
+		log.Error(err, "failed to Deployment update replica count")
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }

@@ -14,6 +14,7 @@ rules:
   - create
   - get
   - list
+  - update
   - watch
 - apiGroups:
   - mygroup.k8s.io
