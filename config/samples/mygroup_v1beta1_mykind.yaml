@@ -1,0 +1,7 @@
+apiVersion: mygroup.k8s.io/v1beta1
+kind: MyKind
+metadata:
+  name: mykind-sample
+spec:
+  # Add fields here
+  foo: bar

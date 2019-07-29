@@ -1,0 +1,7 @@
+version: "2"
+domain: k8s.io
+repo: jetstack.io/example-controller
+resources:
+- group: mygroup
+  version: v1beta1
+  kind: MyKind
