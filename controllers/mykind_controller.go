@@ -55,9 +55,11 @@ func (r *MyKindReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	log = log.WithValues("deployment_name", myKind.Spec.DeploymentName)
+
 	log.Info("checking if an existing Deployment exists for this resource")
 	deployment := apps.Deployment{}
-	err := r.Client.Get(ctx, client.ObjectKey{Namespace: myKind.Namespace, Name: myKind.Name}, &deployment)
+	err := r.Client.Get(ctx, client.ObjectKey{Namespace: myKind.Namespace, Name: myKind.Spec.DeploymentName}, &deployment)
 	if apierrors.IsNotFound(err) {
 		log.Info("could not find existing Deployment for MyKind, creating one...")
 
@@ -81,24 +83,23 @@ func (r *MyKindReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 func buildDeployment(myKind mygroupv1beta1.MyKind) *apps.Deployment {
-	one := int32(1)
 	deployment := apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            myKind.Name,
+			Name:            myKind.Spec.DeploymentName,
 			Namespace:       myKind.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(&myKind, mygroupv1beta1.GroupVersion.WithKind("MyKind"))},
 		},
 		Spec: apps.DeploymentSpec{
-			Replicas: &one,
+			Replicas: myKind.Spec.Replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"example-controller.jetstack.io/deployment-name": myKind.Name,
+					"example-controller.jetstack.io/deployment-name": myKind.Spec.DeploymentName,
 				},
 			},
 			Template: core.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"example-controller.jetstack.io/deployment-name": myKind.Name,
+						"example-controller.jetstack.io/deployment-name": myKind.Spec.DeploymentName,
 					},
 				},
 				Spec: core.PodSpec{
