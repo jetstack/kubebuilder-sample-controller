@@ -83,18 +83,19 @@ func (r *MyKindReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if myKind.Spec.Replicas != nil {
 		expectedReplicas = *myKind.Spec.Replicas
 	}
-	if *deployment.Spec.Replicas == expectedReplicas {
-		log.Info("replica count up to date", "replica_count", *deployment.Spec.Replicas)
+	if *deployment.Spec.Replicas != expectedReplicas {
+		log.Info("updating replica count", "old_count", *deployment.Spec.Replicas, "new_count", expectedReplicas)
+
+		deployment.Spec.Replicas = &expectedReplicas
+		if err := r.Client.Update(ctx, &deployment); err != nil {
+			log.Error(err, "failed to Deployment update replica count")
+			return ctrl.Result{}, err
+		}
+
 		return ctrl.Result{}, nil
 	}
 
-	log.Info("updating replica count", "old_count", *deployment.Spec.Replicas, "new_count", expectedReplicas)
-
-	deployment.Spec.Replicas = &expectedReplicas
-	if err := r.Client.Update(ctx, &deployment); err != nil {
-		log.Error(err, "failed to Deployment update replica count")
-		return ctrl.Result{}, err
-	}
+	log.Info("replica count up to date", "replica_count", *deployment.Spec.Replicas)
 
 	return ctrl.Result{}, nil
 }
