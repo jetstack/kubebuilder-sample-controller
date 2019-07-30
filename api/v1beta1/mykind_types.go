@@ -43,11 +43,17 @@ type MyKindSpec struct {
 
 // MyKindStatus defines the observed state of MyKind
 type MyKindStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// ReadyReplicas is the number of 'ready' replicas observed on the
+	// Deployment resource created for this MyKind resource.
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // MyKind is the Schema for the mykinds API
 type MyKind struct {

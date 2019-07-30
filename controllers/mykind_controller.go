@@ -97,6 +97,15 @@ func (r *MyKindReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	log.Info("replica count up to date", "replica_count", *deployment.Spec.Replicas)
 
+	log.Info("updating MyKind resource status")
+	myKind.Status.ReadyReplicas = deployment.Status.ReadyReplicas
+	if r.Client.Status().Update(ctx, &myKind); err != nil {
+		log.Error(err, "failed to update MyKind status")
+		return ctrl.Result{}, err
+	}
+
+	log.Info("resource status synced")
+
 	return ctrl.Result{}, nil
 }
 
