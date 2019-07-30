@@ -9,6 +9,18 @@ rules:
 - apiGroups:
   - mygroup.k8s.io
   resources:
+  - mykinds
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mygroup.k8s.io
+  resources:
   - mykinds/status
   verbs:
   - get
@@ -20,19 +32,8 @@ rules:
   - deployments
   verbs:
   - create
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - mygroup.k8s.io
-  resources:
-  - mykinds
-  verbs:
-  - create
   - delete
   - get
   - list
-  - patch
   - update
   - watch

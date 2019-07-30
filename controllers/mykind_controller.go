@@ -24,6 +24,7 @@ import (
 	core "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -39,7 +40,7 @@ type MyKindReconciler struct {
 // +kubebuilder:rbac:groups=mygroup.k8s.io,resources=mykinds,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=mygroup.k8s.io,resources=mykinds/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=mygroup.k8s.io,resources=mykinds/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;delete
 
 func (r *MyKindReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -53,6 +54,11 @@ func (r *MyKindReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		// Ignore NotFound errors as they will be retried automatically if the
 		// resource is created in future.
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if err := r.cleanupOwnedResources(ctx, log, &myKind); err != nil {
+		log.Error(err, "failed to clean up old Deployment resources for this MyKind")
+		return ctrl.Result{}, err
 	}
 
 	log = log.WithValues("deployment_name", myKind.Spec.DeploymentName)
@@ -109,6 +115,39 @@ func (r *MyKindReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
+// cleanupOwnedResources will Delete any existing Deployment resources that
+// were created for the given MyKind that no longer match the
+// myKind.spec.deploymentName field.
+func (r *MyKindReconciler) cleanupOwnedResources(ctx context.Context, log logr.Logger, myKind *mygroupv1beta1.MyKind) error {
+	log.Info("finding existing Deployments for MyKind resource")
+
+	// List all deployment resources owned by this MyKind
+	var deployments apps.DeploymentList
+	if err := r.List(ctx, &deployments, client.InNamespace(myKind.Namespace), client.MatchingField(deploymentOwnerKey, myKind.Name)); err != nil {
+		return err
+	}
+
+	deleted := 0
+	for _, depl := range deployments.Items {
+		if depl.Name == myKind.Spec.DeploymentName {
+			// If this deployment's name matches the one on the MyKind resource
+			// then do not delete it.
+			continue
+		}
+
+		if err := r.Client.Delete(ctx, &depl); err != nil {
+			log.Error(err, "failed to delete Deployment resource")
+			return err
+		}
+
+		deleted++
+	}
+
+	log.Info("finished cleaning up old Deployment resources", "number_deleted", deleted)
+
+	return nil
+}
+
 func buildDeployment(myKind mygroupv1beta1.MyKind) *apps.Deployment {
 	deployment := apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -143,7 +182,29 @@ func buildDeployment(myKind mygroupv1beta1.MyKind) *apps.Deployment {
 	return &deployment
 }
 
+var (
+	deploymentOwnerKey = ".metadata.controller"
+)
+
 func (r *MyKindReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if err := mgr.GetFieldIndexer().IndexField(&apps.Deployment{}, deploymentOwnerKey, func(rawObj runtime.Object) []string {
+		// grab the Deployment object, extract the owner...
+		depl := rawObj.(*apps.Deployment)
+		owner := metav1.GetControllerOf(depl)
+		if owner == nil {
+			return nil
+		}
+		// ...make sure it's a MyKind...
+		if owner.APIVersion != mygroupv1beta1.GroupVersion.String() || owner.Kind != "MyKind" {
+			return nil
+		}
+
+		// ...and if so, return it
+		return []string{owner.Name}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&mygroupv1beta1.MyKind{}).
 		Owns(&apps.Deployment{}).
