@@ -122,6 +122,52 @@ var _ = Context("Inside of a new namespace", func() {
 				Should(Equal(int32(2)), "expected Deployment resource to be scale to 2 replicas")
 		})
 
+		It("should clean up an old Deployment resource if the deploymentName is changed", func() {
+			deploymentObjectKey := client.ObjectKey{
+				Name:      "deployment-name",
+				Namespace: ns.Name,
+			}
+			newDeploymentObjectKey := client.ObjectKey{
+				Name:      "new-deployment",
+				Namespace: ns.Name,
+			}
+			myKindObjectKey := client.ObjectKey{
+				Name:      "testresource",
+				Namespace: ns.Name,
+			}
+			myKind := &mygroupv1beta1.MyKind{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      myKindObjectKey.Name,
+					Namespace: myKindObjectKey.Namespace,
+				},
+				Spec: mygroupv1beta1.MyKindSpec{
+					DeploymentName: deploymentObjectKey.Name,
+				},
+			}
+
+			err := k8sClient.Create(ctx, myKind)
+			Expect(err).NotTo(HaveOccurred(), "failed to create test MyKind resource")
+
+			deployment := &apps.Deployment{}
+			Eventually(
+				getResourceFunc(ctx, deploymentObjectKey, deployment),
+				time.Second*5, time.Millisecond*500).Should(BeNil(), "deployment resource should exist")
+
+			err = k8sClient.Get(ctx, myKindObjectKey, myKind)
+			Expect(err).NotTo(HaveOccurred(), "failed to retrieve MyKind resource")
+
+			myKind.Spec.DeploymentName = newDeploymentObjectKey.Name
+			err = k8sClient.Update(ctx, myKind)
+			Expect(err).NotTo(HaveOccurred(), "failed to Update MyKind resource")
+
+			Eventually(
+				getResourceFunc(ctx, deploymentObjectKey, deployment),
+				time.Second*5, time.Millisecond*500).ShouldNot(BeNil(), "old deployment resource should be deleted")
+
+			Eventually(
+				getResourceFunc(ctx, newDeploymentObjectKey, deployment),
+				time.Second*5, time.Millisecond*500).Should(BeNil(), "new deployment resource should be created")
+		})
 	})
 })
 
