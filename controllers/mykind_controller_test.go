@@ -87,10 +87,14 @@ var _ = Context("Inside of a new namespace", func() {
 				Name:      "deployment-name",
 				Namespace: ns.Name,
 			}
+			myKindObjectKey := client.ObjectKey{
+				Name:      "testresource",
+				Namespace: ns.Name,
+			}
 			myKind := &mygroupv1beta1.MyKind{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "testresource",
-					Namespace: ns.Name,
+					Name:      myKindObjectKey.Name,
+					Namespace: myKindObjectKey.Namespace,
 				},
 				Spec: mygroupv1beta1.MyKindSpec{
 					DeploymentName: deploymentObjectKey.Name,
@@ -106,6 +110,9 @@ var _ = Context("Inside of a new namespace", func() {
 				time.Second*5, time.Millisecond*500).Should(BeNil(), "deployment resource should exist")
 
 			Expect(*deployment.Spec.Replicas).To(Equal(int32(1)), "replica count should be equal to 1")
+
+			err = k8sClient.Get(ctx, myKindObjectKey, myKind)
+			Expect(err).NotTo(HaveOccurred(), "failed to retrieve MyKind resource")
 
 			myKind.Spec.Replicas = pointer.Int32Ptr(2)
 			err = k8sClient.Update(ctx, myKind)
