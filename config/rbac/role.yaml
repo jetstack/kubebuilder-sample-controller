@@ -7,6 +7,14 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - mygroup.k8s.io
+  resources:
+  - mykinds/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - apps
   resources:
   - deployments
@@ -28,11 +36,3 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - mygroup.k8s.io
-  resources:
-  - mykinds/status
-  verbs:
-  - get
-  - patch
-  - update
