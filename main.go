@@ -63,8 +63,9 @@ func main() {
 	}
 
 	if err = (&controllers.MyKindReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("MyKind"),
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName("MyKind"),
+		Recorder: mgr.GetEventRecorderFor("mykind-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MyKind")
 		os.Exit(1)

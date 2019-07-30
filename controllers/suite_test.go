@@ -108,8 +108,9 @@ func SetupTest(ctx context.Context) *core.Namespace {
 		Expect(err).NotTo(HaveOccurred(), "failed to create manager")
 
 		controller := &MyKindReconciler{
-			Client: mgr.GetClient(),
-			Log:    logf.Log,
+			Client:   mgr.GetClient(),
+			Log:      logf.Log,
+			Recorder: mgr.GetEventRecorderFor("mykind-controller"),
 		}
 		err = controller.SetupWithManager(mgr)
 		Expect(err).NotTo(HaveOccurred(), "failed to setup controller")

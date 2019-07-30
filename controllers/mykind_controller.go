@@ -25,6 +25,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -35,12 +36,15 @@ import (
 type MyKindReconciler struct {
 	client.Client
 	Log logr.Logger
+
+	Recorder record.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=mygroup.k8s.io,resources=mykinds,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=mygroup.k8s.io,resources=mykinds/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=mygroup.k8s.io,resources=mykinds/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 func (r *MyKindReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -75,6 +79,7 @@ func (r *MyKindReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return ctrl.Result{}, err
 		}
 
+		r.Recorder.Eventf(&myKind, core.EventTypeNormal, "Created", "Created deployment %q", deployment.Name)
 		log.Info("created Deployment resource for MyKind")
 		return ctrl.Result{}, nil
 	}
@@ -97,6 +102,8 @@ func (r *MyKindReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			log.Error(err, "failed to Deployment update replica count")
 			return ctrl.Result{}, err
 		}
+
+		r.Recorder.Eventf(&myKind, core.EventTypeNormal, "Scaled", "Scaled deployment %q to %d replicas", deployment.Name, expectedReplicas)
 
 		return ctrl.Result{}, nil
 	}
@@ -140,6 +147,7 @@ func (r *MyKindReconciler) cleanupOwnedResources(ctx context.Context, log logr.L
 			return err
 		}
 
+		r.Recorder.Eventf(myKind, core.EventTypeNormal, "Deleted", "Deleted deployment %q", depl.Name)
 		deleted++
 	}
 
