@@ -30,12 +30,14 @@ type MyKindSpec struct {
 	// DeploymentName is the name of the Deployment resource that the
 	// controller should create.
 	// This field must be specified.
+	// +kubebuilder:validation:MaxLength=64
 	DeploymentName string `json:"deploymentName"`
 
 	// Replicas is the number of replicas that should be specified on the
 	// Deployment resource that the controller creates.
 	// If not specified, one replica will be created.
 	// +optional
+	// +kubebuilder:validation:Minimum=0
 	Replicas *int32 `json:"replicas,omitempty"`
 }
 

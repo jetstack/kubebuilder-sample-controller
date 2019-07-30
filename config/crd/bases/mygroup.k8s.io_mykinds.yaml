@@ -402,12 +402,14 @@ spec:
             deploymentName:
               description: DeploymentName is the name of the Deployment resource that
                 the controller should create. This field must be specified.
+              maxLength: 64
               type: string
             replicas:
               description: Replicas is the number of replicas that should be specified
                 on the Deployment resource that the controller creates. If not specified,
                 one replica will be created.
               format: int32
+              minimum: 0
               type: integer
           required:
           - deploymentName
